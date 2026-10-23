@@ -4,7 +4,7 @@ on:
   push:
     branches: [master, next, wmo88-flight-map]   # personal branch builds its own test APK
     paths: ['src/**', 'assets/**', 'android/**', '.github/workflows/android.yml']
-  workflow_dispatch:
+  workflow_dispatch: # available for manual branch builds
 
 permissions:
   contents: write

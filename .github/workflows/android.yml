@@ -2,7 +2,7 @@ name: Build APKs
 
 on:
   push:
-    branches: [master, next]   # next: a test build in apk-next, before anything reaches apk-latest
+    branches: [master, next, wmo88-flight-map]   # personal branch builds its own test APK
     paths: ['src/**', 'assets/**', 'android/**', '.github/workflows/android.yml']
   workflow_dispatch:
 
@@ -34,10 +34,15 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         run: |
           if [ -z "$KEYSTORE_B64" ] || [ -z "$KEYSTORE_PASSWORD" ]; then
-            echo "::error::ANDROID_KEYSTORE_B64 and ANDROID_KEYSTORE_PASSWORD must both be in the repository's secrets"; exit 1
+            echo "No release signing key configured; Gradle will use its debug key for this personal build."
+          else
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.p12"
+            echo "ANDROID_KEYSTORE=$RUNNER_TEMP/release.p12" >> "$GITHUB_ENV"
           fi
-          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.p12"
-          echo "ANDROID_KEYSTORE=$RUNNER_TEMP/release.p12" >> "$GITHUB_ENV"
+          exit 0
+          # Original signed releases require the upstream key, which is not available in a personal fork.
+          # The fallback debug key requires uninstalling the official-signed app before installing.
+
 
       - name: Build APKs
         env:

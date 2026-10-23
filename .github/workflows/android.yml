@@ -2,7 +2,7 @@ name: Build APKs
 
 on:
   push:
-    branches: [wmo88-flight-map]   # build only this personalized branch
+    branches: [wmo88-flight-map]   # build this personalized branch after Actions approval
     paths: ['src/**', 'assets/**', 'android/**', '.github/workflows/android.yml']
 
 permissions:

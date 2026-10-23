@@ -2,12 +2,11 @@ name: Build APKs
 
 on:
   push:
-    branches: [master, next, wmo88-flight-map]   # personal branch builds its own test APK
+    branches: [wmo88-flight-map]   # build only this personalized branch
     paths: ['src/**', 'assets/**', 'android/**', '.github/workflows/android.yml']
-  workflow_dispatch: # available for manual branch builds
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   apk:

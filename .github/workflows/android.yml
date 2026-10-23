@@ -28,7 +28,7 @@ jobs:
           gradle-version: '8.9'
 
       # the signing key lives only in the repository's secrets (made once with .github/tools/make_signing_key.py)
-      - name: Signing key
+      - name: Signing key (use debug signing when fork has no upstream key)
         env:
           KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
           KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -39,11 +39,6 @@ jobs:
             echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.p12"
             echo "ANDROID_KEYSTORE=$RUNNER_TEMP/release.p12" >> "$GITHUB_ENV"
           fi
-          exit 0
-          # Original signed releases require the upstream key, which is not available in a personal fork.
-          # The fallback debug key requires uninstalling the official-signed app before installing.
-
-
       - name: Build APKs
         env:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}

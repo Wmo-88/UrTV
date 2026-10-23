@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="ar" dir="rtl" class="flight-background">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -29,6 +29,7 @@
   html.widget,html.widget body{background:transparent}
   html.widget .photo,html.widget .veil,html.widget .grain,html.widget .top-veil,html.widget .bottom-veil,
   html.widget .dimmer,html.widget #credit,html.widget .top,html.widget .clockwrap,html.widget .bottom{display:none}
+  html.widget .flight-map{display:none}
   html.widget .stage{height:auto;padding:0;display:block;transition:none}
   html.widget .mid{display:block}
   html.widget .week{width:100%}
@@ -47,6 +48,19 @@
     background-repeat:no-repeat;
     transform:scale(1.03);   /* edges stay covered while it settles */
   }
+  /* Flight background prototype: the map stays full-screen behind UrTV's existing clock and panels. */
+  .flight-map{
+    position:fixed;inset:0;width:100%;height:100%;z-index:0;border:0;pointer-events:none;
+  }
+  html.flight-background .map-labels{position:fixed;inset:0;z-index:4;pointer-events:none;overflow:hidden;color:#F8F0DF}
+  html.flight-background .map-city{position:absolute;white-space:nowrap;transform:translate(-50%,-50%);font-size:clamp(12px,1.05vw,21px);font-weight:500;text-shadow:0 2px 6px #07110f,0 0 12px #07110f,0 1px 2px #07110f;display:flex;align-items:center;gap:.36em}
+  html.flight-background .map-city i{width:.52em;height:.52em;border:2px solid #fff5dc;border-radius:50%;background:#d9ac60;box-shadow:0 0 0 3px #121b1a99,0 0 12px #eac77c;flex:none}  html.flight-background .photo{opacity:0}
+  html.flight-background .week,html.flight-background .clockwrap{display:none}
+  html.flight-background .veil{
+    background:linear-gradient(180deg,rgba(3,10,7,.40) 0%,rgba(3,10,7,.18) 26%,rgba(3,10,7,.10) 54%,rgba(2,6,4,.34) 100%),
+      radial-gradient(120% 85% at 22% 34%,rgba(3,14,9,.20) 0%,rgba(3,14,9,0) 58%);
+  }
+  html.flight-background .bottom-veil{height:18vh;background:linear-gradient(180deg,rgba(2,7,4,0) 0%,rgba(2,7,4,.22) 55%,rgba(2,6,4,.46) 100%)}
   /* each photo's darkness as a plain black layer: same look as filter:brightness, nothing to recompute */
   .photo::after{content:'';position:absolute;inset:0;background:#000;opacity:var(--dim,.05)}
   .veil{
@@ -166,7 +180,7 @@
   .subline .dot{width:5px;height:5px;border-radius:50%;background:var(--gold);opacity:.9}
 
   .bottom{
-    display:grid;grid-template-columns:1fr .9fr 1.3fr;
+    display:grid;grid-template-columns:1fr .85fr .85fr 1.3fr;
     gap:2.4vw;align-items:start;
     border-top:1px solid rgba(220,184,111,.30);
     padding-top:2.1vh;
@@ -221,6 +235,10 @@
   .markets{text-align:left;flex-shrink:0}
   .wxline{display:flex;align-items:baseline;gap:.5em;justify-content:flex-end;line-height:1.3;
     font-size:clamp(19px,1.86vw,37px);font-weight:500;color:var(--sand)}
+  .wxline .inline-clock{font-size:inherit;line-height:1;letter-spacing:0;gap:0;color:#FFFCF2;white-space:nowrap}
+  .wxline .inline-clock .sep{font-size:1em;align-self:baseline;transform:none;padding:0 .04em}
+  .wxline .inline-clock .ampm{font-size:.72em;align-self:baseline;margin:0 .08em 0 0}
+  .wxline .inline-clock .d i + i{margin-left:.01em}
   .wxt{font-family:'ThmanyahDisplay','Thmanyah',serif;font-weight:700;color:#FFFCF2;direction:ltr;
     font-variant-numeric:tabular-nums}
   .wxd.dust{color:#E8B86A}
@@ -250,7 +268,38 @@
 </style>
 </head>
 <body>
+<iframe class="flight-map" title="خريطة الطيران الحي" src="https://globe.airplanes.live/?lat=21.3891&amp;lon=39.8579&amp;zoom=6&amp;baseMap=esri&amp;hideSidebar&amp;hideButtons" referrerpolicy="no-referrer" loading="eager"></iframe>
 <div class="photo"></div>
+
+<div class="map-labels" id="map-labels" aria-hidden="true"></div>
+<script>
+(()=>{
+ const cities=[
+  {n:'جدة',lat:21.4858,lon:39.1925,dx:-20,dy:-28},
+  {n:'مكة المكرمة',lat:21.3891,lon:39.8579,dx:-10,dy:28},
+  {n:'الطائف',lat:21.2703,lon:40.4158,dx:28,dy:-24},
+  {n:'المدينة المنورة',lat:24.5247,lon:39.5692,dx:-18,dy:-18},
+  {n:'ينبع',lat:24.0895,lon:38.0618,dx:-20,dy:16},
+  {n:'الرياض',lat:24.7136,lon:46.6753,dx:10,dy:-18},
+  {n:'تبوك',lat:28.3838,lon:36.555,dx:-12,dy:-12}
+ ];
+ const zoom=6, world=256*Math.pow(2,zoom), centerLat=21.3891, centerLon=39.8579;
+ const px=lon=>(lon+180)/360*world;
+ const py=lat=>(1-Math.log(Math.tan(lat*Math.PI/180)+1/Math.cos(lat*Math.PI/180))/Math.PI)/2*world;
+ const cx=px(centerLon),cy=py(centerLat),root=document.getElementById('map-labels');
+ function draw(){
+  const w=innerWidth,h=innerHeight;root.replaceChildren();
+  for(const c of cities){
+   const x=w/2+px(c.lon)-cx,y=h/2+py(c.lat)-cy;
+   if(x<-100||x>w+100||y<-60||y>h+60)continue;
+   const el=document.createElement('div');el.className='map-city';
+   el.style.left=(x+c.dx)+'px';el.style.top=(y+c.dy)+'px';
+   el.innerHTML='<i></i><span>'+c.n+'</span>';root.appendChild(el);
+  }
+ }
+ addEventListener('resize',draw);draw();
+})();
+</script>
 <div id="credit"></div>
 <div class="veil"></div>
 <div class="grain"></div>
@@ -268,7 +317,10 @@
     </div>
 
     <div class="markets">
-      <div class="wxline"><span class="wxt" id="wx-temp"></span><span class="wxd" id="wx-desc"></span></div>
+      <div class="wxline">
+        <span class="clock inline-clock"><span class="ampm" id="ck-ap">—</span><span class="d" id="ck-h">--</span><span class="sep">:</span><span class="d" id="ck-m">--</span></span>
+        <span class="wxt" id="wx-temp"></span><span class="wxd" id="wx-desc"></span>
+      </div>
       <div class="wxsub"><span id="wx-city">الرياض</span><span class="wxr" id="wx-range"></span></div>
       <div class="rule l"></div>
       <div class="mk">
@@ -280,13 +332,6 @@
   </header>
 
   <section class="mid">
-    <div class="clockwrap">
-      <div class="clock">
-        <span class="ampm" id="ck-ap">—</span><span class="d" id="ck-h">--</span><span class="sep">:</span><span class="d" id="ck-m">--</span>
-      </div>
-      <div class="subline"><span class="dot"></span><span id="clock-sub">بتوقيت الرياض</span></div>
-    </div>
-
     <div class="week">
       <div class="hd" id="week-hd">هذا الأسبوع</div>
       <ul id="week-list"><li class="empty">جارٍ التحميل…</li></ul>
@@ -304,6 +349,12 @@
       <div class="label" id="ramadan-label">رمضان ١٤٤٨</div>
       <div class="big"><span class="num" id="ramadan-days">—</span></div>
       <div class="sub" id="ramadan-sub">—</div>
+    </div>
+
+    <div class="panel p-mid p-birth">
+      <div class="label">ولادة Ayla</div>
+      <div class="big"><span class="num" id="ayla-days">—</span></div>
+      <div class="sub" id="ayla-sub">—</div>
     </div>
 
     <div class="panel p-match">
@@ -607,6 +658,18 @@ function tickRamadan(){
   elS.textContent = days === 0 ? 'رمضان مبارك'
     : 'يبدأ ' + new Intl.DateTimeFormat(GREG,{timeZone:CONFIG.timezone,weekday:'long',day:'numeric',month:'long'})
         .format(new Date(Date.UTC(st.y, st.mo-1, st.d, 12)));
+}
+
+function tickAyla(){
+  const rp = riyadhParts();
+  const due = Date.UTC(2027, 0, 28);
+  const today = Date.UTC(rp.y, rp.mo - 1, rp.d);
+  const days = Math.max(0, Math.round((due - today) / 86400000));
+  const date = new Intl.DateTimeFormat(GREG, {
+    timeZone: CONFIG.timezone, day:'numeric', month:'long', year:'numeric'
+  }).format(new Date(Date.UTC(2027, 0, 28, 12)));
+  document.getElementById('ayla-days').innerHTML = ar(days) + ' <span class="unit">يوم</span>';
+  document.getElementById('ayla-sub').textContent = days === 0 ? 'موعد ولادتها اليوم' : 'الموعد ' + date;
 }
 
 const TEAM_AR = __TEAMS_AR__;   // assets/shared/teams-ar.json
@@ -1249,7 +1312,7 @@ function boot(){
   applyBackground(true);
   loadPhotoIndex().then(() => applyBackground(true));
   setInterval(() => applyBackground(false), 60*1000);
-  tickClock(); tickDates(); tickRamadan();
+  tickClock(); tickDates(); tickRamadan(); tickAyla();
   TICKERS.forEach(loadTicker);
   if(CONFIG.panel === 'none') document.querySelector('.week').style.display = 'none';
   else if(CONFIG.panel !== 'shows') renderPanel(false);   // its own data arrives with prayers, weather, matches
@@ -1257,7 +1320,7 @@ function boot(){
   applyNight(); pixelShift();
 
   setInterval(tickClock, 1000);
-  setInterval(()=>{ tickDates(); tickPrayer(); tickRamadan(); if(CONFIG.panel === 'prayers') renderPanel(false); }, 15000);
+  setInterval(()=>{ tickDates(); tickPrayer(); tickRamadan(); tickAyla(); if(CONFIG.panel === 'prayers') renderPanel(false); }, 15000);
   setInterval(() => renderMatches(false), 60000);
   setInterval(() => renderMatches(true), CONFIG.matchPageMs);
   setInterval(loadLive, 2*60000);
@@ -1275,7 +1338,7 @@ function boot(){
   let lastDay = new Intl.DateTimeFormat('en-CA',{timeZone:CONFIG.timezone}).format(new Date());
   setInterval(()=>{
     const d = new Intl.DateTimeFormat('en-CA',{timeZone:CONFIG.timezone}).format(new Date());
-    if(d !== lastDay){ lastDay = d; loadPhotoIndex().then(() => applyBackground(true)); tickDates(); tickRamadan(); loadPrayers(); loadMatches(); if(CONFIG.panel === 'shows') loadWeek(); loadWeather(); renderPanel(false); }
+    if(d !== lastDay){ lastDay = d; loadPhotoIndex().then(() => applyBackground(true)); tickDates(); tickRamadan(); tickAyla(); loadPrayers(); loadMatches(); if(CONFIG.panel === 'shows') loadWeek(); loadWeather(); renderPanel(false); }
   }, 60*1000);
 }
 
@@ -1312,3 +1375,4 @@ boot();
 </script>
 </body>
 </html>
+
